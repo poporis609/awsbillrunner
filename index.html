@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS 청구서 도망치기 게임 - 개선판</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4a6fa5 100%);
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .background-characters {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .wallet-container {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 80px;
+            animation: walletShake 3s ease-in-out infinite;
+        }
+
+        .flying-money {
+            position: absolute;
+            font-size: 30px;
+            animation: flyMoney 4s linear infinite;
+        }
+
+        .money-1 {
+            top: 25%;
+            left: 45%;
+            animation-delay: 0s;
+        }
+
+        .money-2 {
+            top: 30%;
+            left: 55%;
+            animation-delay: 0.8s;
+        }
+
+        .money-3 {
+            top: 35%;
+            left: 40%;
+            animation-delay: 1.6s;
+        }
+
+        .money-4 {
+            top: 28%;
+            left: 60%;
+            animation-delay: 2.4s;
+        }
+
+        .money-5 {
+            top: 32%;
+            left: 35%;
+            animation-delay: 3.2s;
+        }
+
+        @keyframes walletShake {
+            0%, 100% { 
+                transform: translateX(-50%) rotate(-2deg);
+                opacity: 0.4;
+            }
+            25% { 
+                transform: translateX(-50%) rotate(2deg);
+                opacity: 0.6;
+            }
+            50% { 
+                transform: translateX(-50%) rotate(-1deg);
+                opacity: 0.5;
+            }
+            75% { 
+                transform: translateX(-50%) rotate(1deg);
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes flyMoney {
+            0% {
+                transform: translateY(0px) translateX(0px) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            50% {
+                transform: translateY(-100px) translateX(50px) rotate(180deg);
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-200px) translateX(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, rgba(135, 206, 235, 0.95) 0%, rgba(135, 206, 235, 0.95) 70%, rgba(144, 238, 144, 0.95) 70%, rgba(144, 238, 144, 0.95) 100%);
+            border: 3px solid #333;
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+        }
+
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 120px;
+            background: #90EE90;
+            border-top: 2px solid #228B22;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 120px;
+            left: 50px;
+            width: 40px;
+            height: 60px;
+            background: #FF6B35;
+            border-radius: 20px 20px 5px 5px;
+            transition: bottom 0.3s ease;
+            z-index: 10;
+        }
+
+        #player::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 30px;
+            background: #FFB5A3;
+            border-radius: 50%;
+        }
+
+        #player::after {
+            content: '💸';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+        }
+
+        .player-running {
+            animation: run 0.3s infinite;
+        }
+
+        @keyframes run {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-2px); }
+        }
+
+        .obstacle {
+            position: absolute;
+            bottom: 120px;
+            width: 25px;
+            height: 25px;
+            border: 1px solid;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 8px;
+        }
+
+        .obstacle-s3 {
+            background: #FF9500;
+            border-color: #FF6B00;
+        }
+
+        .obstacle-s3::before {
+            content: 'S3';
+        }
+
+        .obstacle-ec2 {
+            background: #FF6B6B;
+            border-color: #FF4757;
+        }
+
+        .obstacle-ec2::before {
+            content: 'EC2';
+        }
+
+        .obstacle-lambda {
+            background: #5F27CD;
+            border-color: #341F97;
+        }
+
+        .obstacle-lambda::before {
+            content: 'λ';
+            font-size: 12px;
+        }
+
+        .obstacle-air {
+            bottom: 200px; /* 공중에 떠있는 장애물 */
+            background: #9B59B6;
+            border-color: #8E44AD;
+        }
+
+        .obstacle-air::before {
+            content: '☁️';
+            font-size: 12px;
+        }
+
+        .obstacle-rds {
+            background: #00D2D3;
+            border-color: #0ABDE3;
+        }
+
+        .obstacle-rds::before {
+            content: 'RDS';
+        }
+
+        .powerup {
+            position: absolute;
+            bottom: 140px;
+            width: 30px;
+            height: 30px;
+            background: #00FF00;
+            border: 2px solid #00AA00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            animation: pulse 1s infinite;
+        }
+
+        .powerup-cost-optimizer::before {
+            content: '💰';
+        }
+
+        .powerup-shield::before {
+            content: '🛡️';
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .bill {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border: 2px solid #FF0000;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #FF0000;
+            font-weight: bold;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        #score, #level, #powerupStatus {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+
+        #victoryScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #333;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            border: 3px solid #FF6B35;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        }
+
+        .money-saved {
+            font-size: 60px;
+            margin: 20px 0;
+            animation: moneySaved 2s infinite;
+        }
+
+        @keyframes moneySaved {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .victory-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #FF6B35;
+        }
+
+        .bill-zero {
+            font-size: 36px;
+            color: #00FF00;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #languageSelection {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 200;
+            border: 3px solid #fff;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .language-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .language-button {
+            display: inline-block;
+            margin: 10px 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #FF6B35, #F7931E);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .language-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .bill-decreasing {
+            animation: billDecrease 0.5s ease-out;
+        }
+
+        @keyframes billDecrease {
+            0% { 
+                transform: scale(1.2);
+                color: #FF0000;
+            }
+            50% { 
+                transform: scale(1.4);
+                color: #00FF00;
+            }
+            100% { 
+                transform: scale(1);
+                color: #FF0000;
+            }
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #333;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.8;
+        }
+
+        .cloud::before,
+        .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+        }
+
+        .cloud1 {
+            width: 60px;
+            height: 20px;
+            top: 50px;
+            left: 200px;
+            animation: moveCloud 15s linear infinite;
+        }
+
+        .cloud1::before {
+            width: 30px;
+            height: 30px;
+            top: -15px;
+            left: 10px;
+        }
+
+        .cloud1::after {
+            width: 40px;
+            height: 25px;
+            top: -10px;
+            right: 10px;
+        }
+
+        .cloud2 {
+            width: 80px;
+            height: 25px;
+            top: 80px;
+            left: 500px;
+            animation: moveCloud 20s linear infinite;
+        }
+
+        .cloud2::before {
+            width: 35px;
+            height: 35px;
+            top: -18px;
+            left: 15px;
+        }
+
+        .cloud2::after {
+            width: 45px;
+            height: 30px;
+            top: -12px;
+            right: 15px;
+        }
+
+        @keyframes moveCloud {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-900px); }
+        }
+
+        .shield-active {
+            box-shadow: 0 0 20px #00FF00;
+            animation: shieldGlow 0.5s infinite alternate;
+        }
+
+        @keyframes shieldGlow {
+            0% { box-shadow: 0 0 20px #00FF00; }
+            100% { box-shadow: 0 0 30px #00FFFF; }
+        }
+
+        .explosion {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #FF6B00, #FF0000);
+            border-radius: 50%;
+            animation: explode 0.5s ease-out;
+            z-index: 50;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        #soundToggle, #musicToggle {
+            position: absolute;
+            top: 20px;
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #soundToggle {
+            right: 200px;
+        }
+
+        #musicToggle {
+            right: 280px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 배경 애니메이션 -->
+    <div class="background-characters">
+        <div class="wallet-container">💸</div>
+        <div class="flying-money money-1">💵</div>
+        <div class="flying-money money-2">💴</div>
+        <div class="flying-money money-3">💶</div>
+        <div class="flying-money money-4">💷</div>
+        <div class="flying-money money-5">💰</div>
+    </div>
+
+    <div id="languageSelection">
+        <div class="language-title">Choose Your Language / 언어를 선택하세요</div>
+        <button class="language-button" onclick="selectLanguage('en')">
+            🇺🇸 English
+        </button>
+        <button class="language-button" onclick="selectLanguage('ko')">
+            🇰🇷 한국어
+        </button>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <div class="cloud cloud1"></div>
+        <div class="cloud cloud2"></div>
+        
+        <div class="bill">
+            AWS Bill<br>
+            $<span id="billAmount">999.99</span>
+        </div>
+        
+        <button id="musicToggle" onclick="toggleMusic()">🎵 ON</button>
+        <button id="soundToggle" onclick="toggleSound()">🔊 ON</button>
+        
+        <div id="hud">
+            <div id="score">Score: 0</div>
+            <div id="level">Level: 1</div>
+            <div id="powerupStatus"></div>
+        </div>
+        
+        <div id="ground"></div>
+        <div id="player"></div>
+        
+        <div id="gameOver">
+            <h2>게임 오버!</h2>
+            <p>AWS 청구서에 잡혔습니다!</p>
+            <p>최종 점수: <span id="finalScore">0</span></p>
+            <p>도달 레벨: <span id="finalLevel">1</span></p>
+            <button onclick="restartGame()">다시 시작</button>
+        </div>
+
+        <div id="victoryScreen">
+            <div class="victory-text">🎉 축하합니다! 🎉</div>
+            <div class="bill-zero">AWS 청구서: $0.00</div>
+            <div class="crying-man">👨‍🦲😭</div>
+            <p>당신은 AWS 청구서를 완전히 없앴습니다!</p>
+            <p>대머리 아저씨가 울고 있어요...</p>
+            <p>최종 점수: <span id="victoryScore">0</span></p>
+            <p>달성 레벨: <span id="victoryLevel">20</span></p>
+            <button onclick="restartGame()">다시 도전하기</button>
+        </div>
+        
+        <div id="instructions">
+            SPACEBAR: Jump | Avoid AWS services and collect power-ups!<br>
+            💰: 2x Score | 🛡️: Shield | ☁️: Don't jump, just pass through!
+        </div>
+    </div>
+
+    <!-- 배경음악 -->
+    <audio id="backgroundMusic" loop>
+        <source src="한계로 밀어붙여.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // 배경 애니메이션 관리
+        class BackgroundManager {
+            constructor() {
+                this.walletElement = document.querySelector('.wallet-container');
+                this.moneyElements = document.querySelectorAll('.flying-money');
+                this.currentBillAmount = 999.99;
+            }
+            
+            updateAnimation(billAmount, level) {
+                const progress = (999.99 - billAmount) / 999.99;
+                const shakeIntensity = Math.max(0.2, 1 - progress);
+                const walletOpacity = 0.4 + (progress * 0.3);
+                
+                this.walletElement.style.opacity = walletOpacity;
+                this.walletElement.style.animationDuration = `${2 + progress * 2}s`;
+                
+                this.moneyElements.forEach((money, index) => {
+                    const newDuration = 4 + (progress * 3);
+                    const newOpacity = Math.max(0.1, 0.8 - (progress * 0.6));
+                    
+                    money.style.animationDuration = `${newDuration}s`;
+                    money.style.opacity = newOpacity;
+                });
+                
+                if (billAmount <= 0) {
+                    this.celebrateVictory();
+                }
+            }
+            
+            celebrateVictory() {
+                this.walletElement.style.animation = 'walletHappy 1s ease-in-out infinite';
+                this.walletElement.style.opacity = '0.8';
+                this.walletElement.innerHTML = '💰';
+                
+                this.moneyElements.forEach(money => {
+                    money.style.opacity = '0';
+                    money.style.animation = 'none';
+                });
+            }
+            
+            reset() {
+                this.walletElement.style.opacity = '0.4';
+                this.walletElement.style.animation = 'walletShake 3s ease-in-out infinite';
+                this.walletElement.innerHTML = '💸';
+                
+                this.moneyElements.forEach((money, index) => {
+                    money.style.opacity = '0.8';
+                    money.style.animationDuration = '4s';
+                    money.style.animation = `flyMoney 4s linear infinite`;
+                    money.style.animationDelay = `${index * 0.8}s`;
+                });
+            }
+        }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes walletHappy {
+                0%, 100% { 
+                    transform: translateX(-50%) rotate(-5deg) scale(1);
+                }
+                25% { 
+                    transform: translateX(-50%) rotate(5deg) scale(1.1);
+                }
+                50% { 
+                    transform: translateX(-50%) rotate(-3deg) scale(1.05);
+                }
+                75% { 
+                    transform: translateX(-50%) rotate(7deg) scale(1.15);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        class LanguageManager {
+            constructor() {
+                this.currentLanguage = 'ko';
+                this.texts = {
+                    ko: {
+                        gameTitle: 'AWS 청구서 도망치기 게임',
+                        score: '점수',
+                        level: '레벨',
+                        gameOver: '게임 오버!',
+                        gameOverMsg: 'AWS 청구서에 잡혔습니다!',
+                        finalScore: '최종 점수',
+                        reachedLevel: '도달 레벨',
+                        restart: '다시 시작',
+                        victory: '🎉 축하합니다! 🎉',
+                        billZero: 'AWS 청구서: $0.00',
+                        billLabel: 'AWS 청구서',
+                        victoryMsg1: '돈을 아꼈습니다!',
+                        victoryMsg2: '축하합니다!',
+                        finalScoreText: '최종 점수',
+                        achievedLevel: '달성 레벨',
+                        playAgain: '다시 도전하기',
+                        instructions: '스페이스바: 점프 | 다양한 AWS 서비스를 피하고 파워업을 수집하세요!<br>💰: 점수 2배 | 🛡️: 무적 상태 | ☁️: 점프하지 말고 지나가세요!',
+                        shieldStatus: '🛡️ 실드',
+                        scoreMultiplierStatus: '💰 점수 2배',
+                        seconds: '초'
+                    },
+                    en: {
+                        gameTitle: 'AWS Bill Runner Game',
+                        score: 'Score',
+                        level: 'Level',
+                        gameOver: 'Game Over!',
+                        gameOverMsg: 'Caught by AWS Bill!',
+                        finalScore: 'Final Score',
+                        reachedLevel: 'Reached Level',
+                        restart: 'Restart',
+                        victory: '🎉 Congratulations! 🎉',
+                        billZero: 'AWS Bill: $0.00',
+                        billLabel: 'AWS Bill',
+                        victoryMsg1: 'You saved money!',
+                        victoryMsg2: 'Congratulations!',
+                        finalScoreText: 'Final Score',
+                        achievedLevel: 'Achieved Level',
+                        playAgain: 'Play Again',
+                        instructions: 'SPACEBAR: Jump | Avoid AWS services and collect power-ups!<br>💰: 2x Score | 🛡️: Shield | ☁️: Don\'t jump, just pass through!',
+                        shieldStatus: '🛡️ Shield',
+                        scoreMultiplierStatus: '💰 2x Score',
+                        seconds: 'sec'
+                    }
+                };
+            }
+            
+            getText(key) {
+                return this.texts[this.currentLanguage][key] || key;
+            }
+            
+            setLanguage(lang) {
+                this.currentLanguage = lang;
+            }
+        }
+
+        const languageManager = new LanguageManager();
+
+        function selectLanguage(lang) {
+            languageManager.setLanguage(lang);
+            document.getElementById('languageSelection').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            setTimeout(() => {
+                initializeGame();
+            }, 100);
+        }
+
+        class SoundManager {
+            constructor() {
+                this.enabled = true;
+                this.context = null;
+                this.init();
+            }
+            
+            init() {
+                try {
+                    this.context = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                }
+            }
+            
+            playTone(frequency, duration, type = 'sine') {
+                if (!this.enabled || !this.context) return;
+                
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.1, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + duration);
+                
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + duration);
+            }
+            
+            jump() {
+                this.playTone(400, 0.1, 'square');
+            }
+            
+            powerup() {
+                this.playTone(600, 0.2, 'sine');
+                setTimeout(() => this.playTone(800, 0.2, 'sine'), 100);
+            }
+            
+            collision() {
+                this.playTone(150, 0.5, 'sawtooth');
+            }
+            
+            score() {
+                this.playTone(800, 0.1, 'triangle');
+            }
+        }
+
+        class MusicManager {
+            constructor() {
+                this.enabled = true;
+                this.backgroundMusic = document.getElementById('backgroundMusic');
+                this.isPlaying = false;
+                this.init();
+            }
+            
+            init() {
+                if (this.backgroundMusic) {
+                    this.backgroundMusic.volume = 0.3;
+                    this.backgroundMusic.addEventListener('ended', () => {
+                        if (this.enabled && this.isPlaying) {
+                            this.backgroundMusic.currentTime = 0;
+                            this.backgroundMusic.play();
+                        }
+                    });
+                }
+            }
+            
+            playBackgroundMusic() {
+                if (!this.enabled || !this.backgroundMusic || this.isPlaying) return;
+                
+                this.isPlaying = true;
+                this.backgroundMusic.currentTime = 0;
+                this.backgroundMusic.play().catch(e => {
+                    console.log('음악 재생 실패:', e);
+                    this.playFallbackMusic();
+                });
+            }
+            
+            playFallbackMusic() {
+                if (!window.AudioContext && !window.webkitAudioContext) return;
+                
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.playMelody();
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                }
+            }
+            
+            playMelody() {
+                if (!this.enabled || !this.isPlaying || !this.audioContext) return;
+                
+                const melody = [
+                    {freq: 440, duration: 0.2}, {freq: 523, duration: 0.2}, {freq: 659, duration: 0.2},
+                    {freq: 784, duration: 0.3}, {freq: 880, duration: 0.4}, {freq: 784, duration: 0.2},
+                    {freq: 659, duration: 0.2}, {freq: 523, duration: 0.3}, {freq: 587, duration: 0.2},
+                    {freq: 698, duration: 0.2}, {freq: 831, duration: 0.2}, {freq: 988, duration: 0.4},
+                    {freq: 1047, duration: 0.5}, {freq: 988, duration: 0.2}, {freq: 880, duration: 0.2},
+                    {freq: 784, duration: 0.2}, {freq: 659, duration: 0.3}, {freq: 523, duration: 0.4},
+                    {freq: 440, duration: 0.6}
+                ];
+                
+                let currentTime = this.audioContext.currentTime;
+                
+                melody.forEach((note) => {
+                    if (!this.isPlaying) return;
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.value = note.freq;
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(0.08, currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+                    
+                    oscillator.start(currentTime);
+                    oscillator.stop(currentTime + note.duration);
+                    
+                    currentTime += note.duration;
+                });
+                
+                setTimeout(() => {
+                    if (this.isPlaying && this.enabled) {
+                        this.playMelody();
+                    }
+                }, (currentTime - this.audioContext.currentTime + 0.5) * 1000);
+            }
+            
+            stop() {
+                this.isPlaying = false;
+                if (this.backgroundMusic) {
+                    this.backgroundMusic.pause();
+                    this.backgroundMusic.currentTime = 0;
+                }
+            }
+            
+            toggle() {
+                this.enabled = !this.enabled;
+                if (this.enabled && !this.isPlaying) {
+                    this.playBackgroundMusic();
+                } else if (!this.enabled) {
+                    this.stop();
+                }
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.player = document.getElementById('player');
+                this.gameContainer = document.getElementById('gameContainer');
+                this.scoreElement = document.getElementById('score');
+                this.levelElement = document.getElementById('level');
+                this.powerupStatusElement = document.getElementById('powerupStatus');
+                this.gameOverElement = document.getElementById('gameOver');
+                this.finalScoreElement = document.getElementById('finalScore');
+                this.finalLevelElement = document.getElementById('finalLevel');
+                this.billAmountElement = document.getElementById('billAmount');
+                
+                this.victoryScreenElement = document.getElementById('victoryScreen');
+                this.victoryScoreElement = document.getElementById('victoryScore');
+                this.victoryLevelElement = document.getElementById('victoryLevel');
+                
+                this.soundManager = new SoundManager();
+                this.musicManager = new MusicManager();
+                this.backgroundManager = new BackgroundManager();
+                
+                this.isJumping = false;
+                this.isGameRunning = false;
+                this.score = 0;
+                this.level = 1;
+                this.obstacles = [];
+                this.powerups = [];
+                this.gameSpeed = 5;
+                this.spawnRate = 0.007;
+                this.powerupSpawnRate = 0.005;
+                this.lastObstacleTime = 0;
+                this.minObstacleGap = 150;
+                
+                this.shieldActive = false;
+                this.shieldTime = 0;
+                this.scoreMultiplier = 1;
+                this.scoreMultiplierTime = 0;
+                
+                this.obstacleTypes = ['s3', 'ec2', 'lambda', 'rds', 'air'];
+                this.powerupTypes = ['cost-optimizer', 'shield'];
+                
+                this.frameCount = 0;
+                this.gameCleared = false;
+                
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.startGame();
+            }
+            
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        if (this.isGameRunning) {
+                            this.jump();
+                        }
+                    }
+                });
+                
+                this.gameContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (this.isGameRunning) {
+                        this.jump();
+                    }
+                });
+            }
+            
+            jump() {
+                if (!this.isJumping) {
+                    this.isJumping = true;
+                    this.soundManager.jump();
+                    this.player.style.bottom = '220px';
+                    
+                    setTimeout(() => {
+                        this.player.style.bottom = '120px';
+                        setTimeout(() => {
+                            this.isJumping = false;
+                        }, 300);
+                    }, 300);
+                }
+            }
+            
+            createObstacle() {
+                if (this.frameCount - this.lastObstacleTime < this.minObstacleGap) {
+                    return;
+                }
+                
+                const obstacle = document.createElement('div');
+                const type = this.obstacleTypes[Math.floor(Math.random() * this.obstacleTypes.length)];
+                obstacle.className = `obstacle obstacle-${type}`;
+                obstacle.style.right = '-50px';
+                obstacle.dataset.type = type;
+                this.gameContainer.appendChild(obstacle);
+                this.obstacles.push(obstacle);
+                this.lastObstacleTime = this.frameCount;
+            }
+            
+            createPowerup() {
+                const powerup = document.createElement('div');
+                const type = this.powerupTypes[Math.floor(Math.random() * this.powerupTypes.length)];
+                powerup.className = `powerup powerup-${type}`;
+                powerup.style.right = '-30px';
+                powerup.dataset.type = type;
+                this.gameContainer.appendChild(powerup);
+                this.powerups.push(powerup);
+            }
+            
+            createExplosion(x, y) {
+                const explosion = document.createElement('div');
+                explosion.className = 'explosion';
+                explosion.style.left = x + 'px';
+                explosion.style.bottom = y + 'px';
+                this.gameContainer.appendChild(explosion);
+                
+                setTimeout(() => {
+                    explosion.remove();
+                }, 500);
+            }
+            
+            updateObstacles() {
+                this.obstacles.forEach((obstacle, index) => {
+                    const currentRight = parseInt(obstacle.style.right) || 0;
+                    obstacle.style.right = (currentRight + this.gameSpeed) + 'px';
+                    
+                    if (currentRight > 700 && currentRight < 720) {
+                        const playerBottom = parseInt(this.player.style.bottom) || 120;
+                        const obstacleType = obstacle.dataset.type;
+                        let collision = false;
+                        
+                        if (obstacleType === 'air') {
+                            if (playerBottom > 180) {
+                                collision = true;
+                            }
+                        } else {
+                            if (playerBottom <= 150) {
+                                collision = true;
+                            }
+                        }
+                        
+                        if (collision) {
+                            if (this.shieldActive) {
+                                this.createExplosion(750 - currentRight, obstacleType === 'air' ? 200 : 120);
+                                obstacle.remove();
+                                this.obstacles.splice(index, 1);
+                                this.score += 20;
+                                this.soundManager.score();
+                                return;
+                            } else {
+                                this.gameOver();
+                                return;
+                            }
+                        }
+                    }
+                    
+                    if (currentRight > 850) {
+                        obstacle.remove();
+                        this.obstacles.splice(index, 1);
+                        this.score += (10 * this.scoreMultiplier);
+                        this.updateScore();
+                    }
+                });
+            }
+            
+            updatePowerups() {
+                this.powerups.forEach((powerup, index) => {
+                    const currentRight = parseInt(powerup.style.right) || 0;
+                    powerup.style.right = (currentRight + this.gameSpeed) + 'px';
+                    
+                    if (currentRight > 680 && currentRight < 760) {
+                        const playerBottom = parseInt(this.player.style.bottom) || 120;
+                        if (playerBottom <= 170 || (playerBottom > 170 && currentRight > 700)) {
+                            this.collectPowerup(powerup.dataset.type);
+                            powerup.remove();
+                            this.powerups.splice(index, 1);
+                            return;
+                        }
+                    }
+                    
+                    if (currentRight > 850) {
+                        powerup.remove();
+                        this.powerups.splice(index, 1);
+                    }
+                });
+            }
+            
+            collectPowerup(type) {
+                this.soundManager.powerup();
+                
+                if (type === 'shield') {
+                    this.shieldActive = true;
+                    this.shieldTime = 300;
+                    this.player.classList.add('shield-active');
+                } else if (type === 'cost-optimizer') {
+                    this.scoreMultiplier = 2;
+                    this.scoreMultiplierTime = 600;
+                }
+                
+                this.updatePowerupStatus();
+            }
+            
+            updatePowerupStatus() {
+                let status = '';
+                if (this.shieldActive) {
+                    status += `${languageManager.getText('shieldStatus')}: ${Math.ceil(this.shieldTime / 60)}${languageManager.getText('seconds')} `;
+                }
+                if (this.scoreMultiplier > 1) {
+                    status += `${languageManager.getText('scoreMultiplierStatus')}: ${Math.ceil(this.scoreMultiplierTime / 60)}${languageManager.getText('seconds')}`;
+                }
+                this.powerupStatusElement.textContent = status;
+            }
+            
+            updateScore() {
+                this.scoreElement.textContent = `${languageManager.getText('score')}: ${this.score}`;
+                
+                const newLevel = Math.floor(this.score / 100) + 1;
+                if (newLevel > this.level) {
+                    this.level = newLevel;
+                    this.levelElement.textContent = `${languageManager.getText('level')}: ${this.level}`;
+                    this.gameSpeed += 0.3;
+                    
+                    this.minObstacleGap = Math.max(80, this.minObstacleGap - 3);
+                    
+                    this.updateBillAmount();
+                }
+                
+                this.soundManager.score();
+            }
+            
+            updateBillAmount() {
+                const maxLevel = 10;
+                let targetAmount;
+                
+                if (this.level >= maxLevel) {
+                    targetAmount = 0;
+                    if (!this.gameCleared) {
+                        this.gameCleared = true;
+                        setTimeout(() => this.showVictory(), 2000);
+                    }
+                } else {
+                    targetAmount = Math.max(0, 999.99 - (this.level - 1) * 111.11);
+                }
+                
+                this.animateBillDecrease(targetAmount);
+            }
+            
+            animateBillDecrease(targetAmount) {
+                const currentAmount = parseFloat(this.billAmountElement.textContent);
+                const difference = currentAmount - targetAmount;
+                
+                if (difference > 0) {
+                    this.billAmountElement.classList.add('bill-decreasing');
+                    
+                    const steps = 30;
+                    const stepAmount = difference / steps;
+                    let currentStep = 0;
+                    
+                    const decreaseInterval = setInterval(() => {
+                        currentStep++;
+                        const newAmount = currentAmount - (stepAmount * currentStep);
+                        
+                        if (currentStep >= steps || newAmount <= targetAmount) {
+                            this.billAmountElement.textContent = targetAmount.toFixed(2);
+                            clearInterval(decreaseInterval);
+                            
+                            this.backgroundManager.updateAnimation(targetAmount, this.level);
+                            
+                            setTimeout(() => {
+                                this.billAmountElement.classList.remove('bill-decreasing');
+                            }, 500);
+                        } else {
+                            this.billAmountElement.textContent = newAmount.toFixed(2);
+                            this.backgroundManager.updateAnimation(newAmount, this.level);
+                        }
+                    }, 50);
+                }
+            }
+            
+            updatePowerupTimers() {
+                if (this.shieldTime > 0) {
+                    this.shieldTime--;
+                    if (this.shieldTime <= 0) {
+                        this.shieldActive = false;
+                        this.player.classList.remove('shield-active');
+                    }
+                }
+                
+                if (this.scoreMultiplierTime > 0) {
+                    this.scoreMultiplierTime--;
+                    if (this.scoreMultiplierTime <= 0) {
+                        this.scoreMultiplier = 1;
+                    }
+                }
+                
+                this.updatePowerupStatus();
+            }
+            
+            gameLoop() {
+                if (!this.isGameRunning) return;
+                
+                this.frameCount++;
+                
+                if (Math.random() < this.spawnRate) {
+                    this.createObstacle();
+                }
+                
+                if (Math.random() < this.powerupSpawnRate) {
+                    this.createPowerup();
+                }
+                
+                this.updateObstacles();
+                this.updatePowerups();
+                this.updatePowerupTimers();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+            
+            updateUILanguage() {
+                this.scoreElement.textContent = `${languageManager.getText('score')}: ${this.score}`;
+                this.levelElement.textContent = `${languageManager.getText('level')}: ${this.level}`;
+                
+                const billElement = document.querySelector('.bill');
+                billElement.innerHTML = `${languageManager.getText('billLabel')}<br>$<span id="billAmount">${this.billAmountElement.textContent}</span>`;
+                this.billAmountElement = document.getElementById('billAmount');
+                
+                const gameOverElement = document.getElementById('gameOver');
+                gameOverElement.innerHTML = `
+                    <h2>${languageManager.getText('gameOver')}</h2>
+                    <p>${languageManager.getText('gameOverMsg')}</p>
+                    <p>${languageManager.getText('finalScore')}: <span id="finalScore">${this.score}</span></p>
+                    <p>${languageManager.getText('reachedLevel')}: <span id="finalLevel">${this.level}</span></p>
+                    <button onclick="restartGame()">${languageManager.getText('restart')}</button>
+                `;
+                
+                const victoryScreenElement = document.getElementById('victoryScreen');
+                victoryScreenElement.innerHTML = `
+                    <div class="victory-text">${languageManager.getText('victory')}</div>
+                    <div class="bill-zero">${languageManager.getText('billZero')}</div>
+                    <div class="money-saved">💰✨</div>
+                    <p>${languageManager.getText('victoryMsg1')}</p>
+                    <p>${languageManager.getText('victoryMsg2')}</p>
+                    <p>${languageManager.getText('finalScoreText')}: <span id="victoryScore">${this.score}</span></p>
+                    <p>${languageManager.getText('achievedLevel')}: <span id="victoryLevel">10</span></p>
+                    <button onclick="restartGame()">${languageManager.getText('playAgain')}</button>
+                `;
+                
+                this.finalScoreElement = document.getElementById('finalScore');
+                this.finalLevelElement = document.getElementById('finalLevel');
+                this.victoryScoreElement = document.getElementById('victoryScore');
+                this.victoryLevelElement = document.getElementById('victoryLevel');
+                
+                document.querySelector('#instructions').innerHTML = languageManager.getText('instructions');
+            }
+            
+            startGame() {
+                this.isGameRunning = true;
+                this.score = 0;
+                this.level = 1;
+                this.gameSpeed = 5;
+                this.spawnRate = 0.007;
+                this.obstacles = [];
+                this.powerups = [];
+                this.shieldActive = false;
+                this.shieldTime = 0;
+                this.scoreMultiplier = 1;
+                this.scoreMultiplierTime = 0;
+                this.frameCount = 0;
+                this.lastObstacleTime = 0;
+                this.minObstacleGap = 150;
+                this.gameCleared = false;
+                
+                this.updateUILanguage();
+                
+                this.scoreElement.textContent = `${languageManager.getText('score')}: ${this.score}`;
+                this.levelElement.textContent = `${languageManager.getText('level')}: ${this.level}`;
+                this.powerupStatusElement.textContent = '';
+                this.billAmountElement.textContent = '999.99';
+                this.gameOverElement.style.display = 'none';
+                this.victoryScreenElement.style.display = 'none';
+                
+                this.player.classList.remove('shield-active');
+                this.player.classList.add('player-running');
+                
+                document.querySelectorAll('.obstacle, .powerup, .explosion').forEach(el => el.remove());
+                
+                this.backgroundManager.reset();
+                
+                this.musicManager.playBackgroundMusic();
+                
+                this.gameLoop();
+            }
+            
+            showVictory() {
+                this.isGameRunning = false;
+                this.musicManager.stop();
+                this.player.classList.remove('player-running');
+                this.victoryScoreElement.textContent = this.score;
+                this.victoryLevelElement.textContent = this.level;
+                this.victoryScreenElement.style.display = 'block';
+                
+                this.backgroundManager.celebrateVictory();
+                
+                this.soundManager.playTone(523, 0.3, 'sine');
+                setTimeout(() => this.soundManager.playTone(659, 0.3, 'sine'), 300);
+                setTimeout(() => this.soundManager.playTone(784, 0.5, 'sine'), 600);
+            }
+            
+            gameOver() {
+                this.isGameRunning = false;
+                this.soundManager.collision();
+                this.musicManager.stop();
+                this.player.classList.remove('player-running');
+                this.finalScoreElement.textContent = this.score;
+                this.finalLevelElement.textContent = this.level;
+                this.gameOverElement.style.display = 'block';
+            }
+        }
+        
+        function initializeGame() {
+            const game = new Game();
+            
+            window.restartGame = () => game.startGame();
+            window.toggleSound = () => {
+                const button = document.getElementById('soundToggle');
+                game.soundManager.enabled = !game.soundManager.enabled;
+                button.textContent = game.soundManager.enabled ? '🔊 ON' : '🔇 OFF';
+            };
+            window.toggleMusic = () => {
+                const button = document.getElementById('musicToggle');
+                game.musicManager.toggle();
+                button.textContent = game.musicManager.enabled ? '🎵 ON' : '🎵 OFF';
+            };
+        }
+    </script>
+</body>
+</html>
